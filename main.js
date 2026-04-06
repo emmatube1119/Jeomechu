@@ -1,39 +1,11 @@
 import './style.css';
+import { MENUS } from './src/data.js';
+import { updateWeight, isFavorite, toggleFavorite, renderFavorites, clearFavorites } from './src/store.js';
+import { fetchWeather, getSmartFilteredMenus, fetchNearbyRestaurants } from './src/api.js';
+import { showToast, shareResultImage } from './src/ui.js';
 
 //=========================================
-// 1. DATA (메뉴 DB + 메타데이터)
-//=========================================
-const MENUS = [
-  { name: '김치찌개', category: ['korean', 'spicy'], ingredient: 'meat', method: 'stew', emoji: '🥘', mood: 'spicy', moodColor: '#ff4d4d' },
-  { name: '불고기', category: ['korean'], ingredient: 'meat', method: 'grill', emoji: '🥩', mood: 'savory', moodColor: '#d35400' },
-  { name: '된장찌개', category: ['korean'], ingredient: 'veggie', method: 'stew', emoji: '🍲', mood: 'warm', moodColor: '#e67e22' },
-  { name: '비빔밥', category: ['korean', 'light'], ingredient: 'veggie', method: 'mix', emoji: '🥗', mood: 'healthy', moodColor: '#2ecc71' },
-  { name: '돈까스', category: ['japanese'], ingredient: 'meat', method: 'fry', emoji: '🍛', mood: 'heavy', moodColor: '#f39c12' },
-  { name: '초밥', category: ['japanese', 'light'], ingredient: 'seafood', method: 'raw', emoji: '🍣', mood: 'fresh', moodColor: '#3498db' },
-  { name: '라멘', category: ['japanese'], ingredient: 'noodle', method: 'stew', emoji: '🍜', mood: 'warm', moodColor: '#f1c40f' },
-  { name: '스테이크', category: ['western'], ingredient: 'meat', method: 'grill', emoji: '🥩', mood: 'fancy', moodColor: '#8e44ad' },
-  { name: '파스타', category: ['western'], ingredient: 'noodle', method: 'mix', emoji: '🍝', mood: 'fancy', moodColor: '#e74c3c' },
-  { name: '피자', category: ['western'], ingredient: 'dough', method: 'bake', emoji: '🍕', mood: 'party', moodColor: '#f1c40f' },
-  { name: '짜장면', category: ['chinese'], ingredient: 'noodle', method: 'mix', emoji: '🟤', mood: 'heavy', moodColor: '#2c3e50' },
-  { name: '짬뽕', category: ['chinese', 'spicy'], ingredient: 'noodle', method: 'stew', emoji: '🔥', mood: 'spicy', moodColor: '#e74c3c' },
-  { name: '탕수육', category: ['chinese'], ingredient: 'meat', method: 'fry', emoji: '🍖', mood: 'heavy', moodColor: '#f39c12' },
-  { name: '마라탕', category: ['chinese', 'spicy'], ingredient: 'mix', method: 'stew', emoji: '🌶️', mood: 'spicy', moodColor: '#c0392b' },
-  { name: '치킨', category: ['western', 'night'], ingredient: 'meat', method: 'fry', emoji: '🍗', mood: 'party', moodColor: '#f39c12' },
-  { name: '떡볶이', category: ['korean', 'spicy'], ingredient: 'dough', method: 'stew', emoji: '🌶️', mood: 'spicy', moodColor: '#e74c3c' },
-  { name: '샐러드', category: ['light'], ingredient: 'veggie', method: 'raw', emoji: '🥗', mood: 'healthy', moodColor: '#2ecc71' },
-  { name: '쌀국수', category: ['light'], ingredient: 'noodle', method: 'stew', emoji: '🍜', mood: 'warm', moodColor: '#1abc9c' },
-  { name: '순대국', category: ['korean'], ingredient: 'meat', method: 'stew', emoji: '🍲', mood: 'warm', moodColor: '#d35400' },
-  { name: '갈비탕', category: ['korean'], ingredient: 'meat', method: 'stew', emoji: '🍖', mood: 'warm', moodColor: '#e67e22' },
-  { name: '육개장', category: ['korean', 'spicy'], ingredient: 'meat', method: 'stew', emoji: '🔥', mood: 'spicy', moodColor: '#c0392b' },
-  { name: '삼겹살', category: ['korean', 'night'], ingredient: 'meat', method: 'grill', emoji: '🥓', mood: 'party', moodColor: '#d35400' },
-  { name: '제육볶음', category: ['korean', 'spicy'], ingredient: 'meat', method: 'fry', emoji: '🥘', mood: 'spicy', moodColor: '#e74c3c' },
-  { name: '회', category: ['japanese', 'light'], ingredient: 'seafood', method: 'raw', emoji: '🐟', mood: 'fresh', moodColor: '#3498db' },
-  { name: '햄버거', category: ['western'], ingredient: 'meat', method: 'fry', emoji: '🍔', mood: 'casual', moodColor: '#f1c40f' },
-  { name: '족발', category: ['korean', 'night'], ingredient: 'meat', method: 'stew', emoji: '🍖', mood: 'party', moodColor: '#8e44ad' }
-];
-
-//=========================================
-// 2. STATE & UTILS
+// 1. STATE & DOM ELEMENTS
 //=========================================
 let currentMode = 'random'; // random, mix, favorites
 let currentCategory = 'all';
@@ -41,117 +13,7 @@ let selectedIngredient = '';
 let selectedMethod = '';
 let isSpinning = false;
 let currentResultMenu = null;
-let userWeather = null; // { condition: 'Rain', temp: 20 }
 
-const STORAGE_FAQS = 'jemechu_favorites';
-const STORAGE_WEIGHTS = 'jemechu_weights';
-
-// Custom Toast
-function showToast(msg) {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = msg;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-
-// User Action Storage (Like/Dislike)
-function updateWeight(menuName, delta) {
-  let weights = JSON.parse(localStorage.getItem(STORAGE_WEIGHTS) || '{}');
-  weights[menuName] = (weights[menuName] || 1.0) + delta;
-  // min threshold
-  if (weights[menuName] < 0.1) weights[menuName] = 0.1;
-  localStorage.setItem(STORAGE_WEIGHTS, JSON.stringify(weights));
-}
-
-function getWeight(menuName) {
-  let weights = JSON.parse(localStorage.getItem(STORAGE_WEIGHTS) || '{}');
-  return weights[menuName] !== undefined ? weights[menuName] : 1.0;
-}
-
-// Favorites Storage
-function getFavorites() {
-  return JSON.parse(localStorage.getItem(STORAGE_FAQS) || '[]');
-}
-
-function toggleFavorite(menuObj) {
-  let favs = getFavorites();
-  const exists = favs.findIndex(m => m.name === menuObj.name);
-  if (exists > -1) {
-    favs.splice(exists, 1);
-    showToast('보관함에서 제거되었습니다.');
-  } else {
-    favs.push(menuObj);
-    showToast('보관함에 저장되었습니다 ⭐');
-  }
-  localStorage.setItem(STORAGE_FAQS, JSON.stringify(favs));
-  renderFavorites();
-  return exists === -1; // true if added
-}
-
-function isFavorite(menuName) {
-  return getFavorites().some(m => m.name === menuName);
-}
-
-//=========================================
-// 3. API & SMART LOGIC
-//=========================================
-async function fetchWeather() {
-  try {
-    // Open-Meteo (No API Key Required) - default Seoul
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current_weather=true');
-    const data = await res.json();
-    const weathercode = data.current_weather.weathercode;
-    const temp = data.current_weather.temperature;
-    
-    // Simple interpretation 
-    let condition = 'Clear';
-    if ([51,53,55,61,63,65,80,81,82].includes(weathercode)) condition = 'Rain';
-    else if ([71,73,75,85,86].includes(weathercode)) condition = 'Snow';
-
-    userWeather = { condition, temp };
-    document.getElementById('weather-status').textContent = `현재 서울: ${temp}°C, ${condition === 'Rain' ? '비오는 날엔 파전/짬뽕!' : '오늘 저녁 메뉴, 고민 끝!'}`;
-  } catch (err) {
-    console.log('Weather fetch failed', err);
-  }
-}
-
-// Calculate smart weights based on weather, time, and user history
-function getSmartFilteredMenus(baseFiltered) {
-  const hour = new Date().getHours();
-  const isNight = hour >= 21 || hour < 4;
-
-  let weightedList = [];
-
-  baseFiltered.forEach(m => {
-    let weight = getWeight(m.name); // user history base
-
-    // Time logic
-    if (isNight && m.category.includes('night')) weight *= 2.0;
-
-    // Weather logic
-    if (userWeather) {
-      if (userWeather.condition === 'Rain' && (m.name.includes('짬뽕') || m.name.includes('파전') || m.method === 'stew')) {
-        weight *= 1.5;
-      }
-      if (userWeather.temp > 30 && m.mood === 'fresh') weight *= 1.5; // hot day
-      if (userWeather.temp < 5 && m.method === 'stew') weight *= 1.5; // cold day
-    }
-
-    // Add to pool relative to weight (simulated weighted random)
-    const tickets = Math.max(1, Math.round(weight * 10));
-    for (let i = 0; i < tickets; i++) {
-        weightedList.push(m);
-    }
-  });
-
-  return weightedList.length > 0 ? weightedList : baseFiltered;
-}
-
-//=========================================
-// 4. DOM ELEMENTS
-//=========================================
 const slotInner = document.getElementById('slot-inner');
 const spinBtn = document.getElementById('spin-btn');
 const resultModal = document.getElementById('result-modal');
@@ -160,7 +22,7 @@ const resultEmojiEl = document.getElementById('result-emoji');
 const documentRoot = document.documentElement;
 
 //=========================================
-// 5. CORE LOGIC
+// 2. CORE LOGIC (Slot Machine)
 //=========================================
 function initSlot(category) {
   const filtered = category === 'all' 
@@ -211,7 +73,7 @@ function spin() {
     return;
   }
 
-  // Applies weather/time/history weights
+  // Applies weather/time/history weights via api.js
   const smartPool = getSmartFilteredMenus(baseFiltered);
 
   isSpinning = true;
@@ -284,10 +146,13 @@ function showResult(menuObj) {
   isSpinning = false;
   spinBtn.disabled = false;
   document.querySelector('.btn-text').textContent = '다시 추천받기!';
+
+  // Fetch nearby restaurants automatically via api.js
+  fetchNearbyRestaurants(menuObj.name);
 }
 
 //=========================================
-// 6. EVENT LISTENERS & UI LOGIC
+// 3. EVENT LISTENERS
 //=========================================
 
 // Tabs Switching
@@ -320,28 +185,28 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // Category & Mix selections
 document.querySelectorAll('.cat-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', (e) => {
     if (isSpinning) return;
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentCategory = btn.dataset.category;
+    e.target.classList.add('active');
+    currentCategory = e.target.dataset.category;
     initSlot(currentCategory);
   });
 });
 
 document.querySelectorAll('.ing-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', (e) => {
     document.querySelectorAll('.ing-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedIngredient = btn.dataset.ing;
+    e.target.classList.add('selected');
+    selectedIngredient = e.target.dataset.ing;
   });
 });
 
 document.querySelectorAll('.method-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', (e) => {
     document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedMethod = btn.dataset.method;
+    e.target.classList.add('selected');
+    selectedMethod = e.target.dataset.method;
   });
 });
 
@@ -351,71 +216,13 @@ spinBtn.addEventListener('click', spin);
 document.getElementById('retry-btn').addEventListener('click', () => {
   resultModal.classList.add('hidden');
   documentRoot.style.setProperty('--mood-color', 'transparent');
+  document.getElementById('nearby-restaurants').innerHTML = ''; // Reset list
   if(currentMode === 'random') initSlot(currentCategory);
 });
 
-// Actions
-document.getElementById('map-btn').addEventListener('click', () => {
-  if(!currentResultMenu) return;
-  const searchUrl = `https://map.naver.com/v5/search/${encodeURIComponent(currentResultMenu.name + ' 맛집')}`;
-  window.open(searchUrl, '_blank');
-});
-
-// Share (Canvas)
-document.getElementById('share-btn').addEventListener('click', async () => {
-  if(!currentResultMenu) return;
-  
-  try {
-    const canvas = document.getElementById('share-canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Draw bg
-    ctx.fillStyle = '#0a0b1e';
-    ctx.fillRect(0, 0, 600, 400);
-    
-    // Draw glow
-    const grad = ctx.createRadialGradient(300, 200, 50, 300, 200, 300);
-    grad.addColorStop(0, currentResultMenu.moodColor);
-    grad.addColorStop(1, 'transparent');
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0,600,400);
-    ctx.globalAlpha = 1.0;
-
-    // Draw text
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 30px "Gmarket Sans", sans-serif';
-    ctx.fillText("오늘 저녁은...", 300, 100);
-    
-    ctx.font = 'bold 80px "Gmarket Sans", sans-serif';
-    ctx.fillText(currentResultMenu.emoji + ' ' + currentResultMenu.name, 300, 220);
-    
-    ctx.font = '20px "Gmarket Sans", sans-serif';
-    ctx.fillStyle = '#a0a0cc';
-    ctx.fillText("저메추(jemechu.app)에서 추천받았어요!", 300, 350);
-
-    canvas.toBlob(async (blob) => {
-      // Check if Web Share API applies
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'jemechu.png', {type: 'image/png'})]})) {
-        await navigator.share({
-          files: [new File([blob], 'jemechu.png', {type: 'image/png'})],
-          title: '저메추 추천 결과',
-          text: `오늘 저녁은 ${currentResultMenu.name} 어때요?`
-        });
-      } else {
-        // Fallback: Download
-        const link = document.createElement('a');
-        link.download = '저메추_추천결과.png';
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        showToast('이미지가 저장되었습니다.');
-      }
-    });
-  } catch(e) {
-    console.error(e);
-    showToast('공유하기에 실패했습니다.');
-  }
+// Share Action
+document.getElementById('share-btn').addEventListener('click', () => {
+  shareResultImage(currentResultMenu);
 });
 
 // Reactions
@@ -424,8 +231,8 @@ document.getElementById('like-btn').addEventListener('click', (e) => {
   if(btn.classList.contains('active')) return;
   btn.classList.add('active');
   document.getElementById('dislike-btn').classList.remove('active');
-  updateWeight(currentResultMenu.name, 0.5); // Increase probability
-  showToast('추향을 반영했습니다. 👍');
+  updateWeight(currentResultMenu.name, 0.5);
+  showToast('취향을 반영했습니다. 👍');
 });
 
 document.getElementById('dislike-btn').addEventListener('click', (e) => {
@@ -433,57 +240,24 @@ document.getElementById('dislike-btn').addEventListener('click', (e) => {
   if(btn.classList.contains('active')) return;
   btn.classList.add('active');
   document.getElementById('like-btn').classList.remove('active');
-  updateWeight(currentResultMenu.name, -0.5); // Decrease probability
+  updateWeight(currentResultMenu.name, -0.5);
   showToast('이 메뉴는 앞으로 덜 추천할게요. 👎');
 });
 
 document.getElementById('favorite-btn').addEventListener('click', (e) => {
-  const isAdded = toggleFavorite(currentResultMenu);
+  const isAdded = toggleFavorite(currentResultMenu, renderFavorites);
   if(isAdded) e.currentTarget.classList.add('active');
   else e.currentTarget.classList.remove('active');
 });
 
-// Favorites rendering
-function renderFavorites() {
-  const listEl = document.getElementById('favorites-list');
-  const favs = getFavorites();
-  const clearBtn = document.getElementById('clear-favorites-btn');
-
-  if(favs.length === 0) {
-    listEl.innerHTML = '<p class="empty-msg">⭐ 아직 보관된 메뉴가 없어요.<br>추천 결과에서 별표를 눌러 저장하세요!</p>';
-    clearBtn.style.display = 'none';
-    return;
-  }
-
-  listEl.innerHTML = '';
-  favs.forEach(menu => {
-    const div = document.createElement('div');
-    div.className = 'fav-item';
-    div.innerHTML = `
-      <div class="fav-info"><span class="fav-emoji">${menu.emoji}</span> ${menu.name}</div>
-      <button class="remove-fav-btn" data-name="${menu.name}">X</button>
-    `;
-    listEl.appendChild(div);
-  });
-
-  document.querySelectorAll('.remove-fav-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      toggleFavorite({name: e.target.dataset.name});
-    });
-  });
-
-  clearBtn.style.display = 'block';
-}
-
 document.getElementById('clear-favorites-btn').addEventListener('click', () => {
   if(confirm('보관함을 모두 비울까요?')) {
-    localStorage.removeItem(STORAGE_FAQS);
-    renderFavorites();
+    clearFavorites(renderFavorites);
   }
 });
 
 //=========================================
-// 7. BOOTSTRAP
+// 4. BOOTSTRAP
 //=========================================
 fetchWeather();
 initSlot('all');
@@ -491,7 +265,7 @@ initSlot('all');
 // PWA Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js')
       .then(reg => console.log('SW registered'))
       .catch(err => console.log('SW reg failed', err));
   });
