@@ -1,8 +1,9 @@
 //=========================================
 // 1. CONFIG
 //=========================================
-// 카카오 디벨로퍼스(https://developers.kakao.com)에서 발급받은 REST API 키(무료)를 입력하세요.
-export const KAKAO_REST_API_KEY = ''; 
+// 카카오 디벨로퍼스(https://developers.kakao.com)에서 발급받은 REST API 키(무료)를 사용합니다.
+// 로컬 개발시에는 .env 파일에 VITE_KAKAO_API_KEY=키 를 입력하세요.
+export const KAKAO_REST_API_KEY = import.meta.env.VITE_KAKAO_API_KEY || ''; 
 
 //=========================================
 // 2. DATA (메뉴 DB + 메타데이터)
