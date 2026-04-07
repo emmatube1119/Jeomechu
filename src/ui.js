@@ -1,14 +1,20 @@
+// src/ui.js
+// 시각 요소 전담: 토스트, 렌더링, 공유 버튼 로직을 담당합니다.
 import { getFavorites, toggleFavorite } from './store.js';
 
 // Custom Toast
 export function showToast(msg) {
-  const container = document.getElementById('toast-container');
-  if(!container) return;
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = msg;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  try {
+    const container = document.getElementById('toast-container');
+    if(!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  } catch (e) {
+    console.error('Toast Error:', e);
+  }
 }
 
 // Favorites rendering
@@ -17,9 +23,11 @@ export function renderFavorites() {
   const favs = getFavorites();
   const clearBtn = document.getElementById('clear-favorites-btn');
 
+  if(!listEl) return;
+
   if(favs.length === 0) {
     listEl.innerHTML = '<p class="empty-msg">⭐ 아직 보관된 메뉴가 없어요.<br>추천 결과에서 별표를 눌러 저장하세요!</p>';
-    clearBtn.style.display = 'none';
+    if(clearBtn) clearBtn.style.display = 'none';
     return;
   }
 
@@ -36,11 +44,14 @@ export function renderFavorites() {
 
   document.querySelectorAll('.remove-fav-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      toggleFavorite({name: e.target.dataset.name}, renderFavorites);
+      const menuName = e.target.dataset.name;
+      toggleFavorite({name: menuName});
+      showToast('보관함에서 제거되었습니다.');
+      renderFavorites();
     });
   });
 
-  clearBtn.style.display = 'block';
+  if(clearBtn) clearBtn.style.display = 'block';
 }
 
 export function generateRestaurantHtml(name, rating, distanceMeters, kakaoUrl) {
@@ -74,9 +85,9 @@ export async function shareResultImage(currentResultMenu) {
     ctx.fillStyle = '#0a0b1e';
     ctx.fillRect(0, 0, 600, 400);
     
-    // Draw glow
+    // Draw gradient
     const grad = ctx.createRadialGradient(300, 200, 50, 300, 200, 300);
-    grad.addColorStop(0, currentResultMenu.moodColor);
+    grad.addColorStop(0, currentResultMenu.moodColor || '#f39c12');
     grad.addColorStop(1, 'transparent');
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = grad;
@@ -97,7 +108,7 @@ export async function shareResultImage(currentResultMenu) {
     ctx.fillText("저메추(jemechu.app)에서 추천받았어요!", 300, 350);
 
     canvas.toBlob(async (blob) => {
-      // Check if Web Share API applies
+      // Check for Web Share API
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'jemechu.png', {type: 'image/png'})]})) {
         await navigator.share({
           files: [new File([blob], 'jemechu.png', {type: 'image/png'})],
@@ -114,7 +125,7 @@ export async function shareResultImage(currentResultMenu) {
       }
     });
   } catch(e) {
-    console.error(e);
+    console.error('Share Error:', e);
     showToast('공유하기에 실패했습니다.');
   }
 }
