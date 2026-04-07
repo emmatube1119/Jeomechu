@@ -1,4 +1,3 @@
-import './style.css';
 import { MENUS } from './src/data.js';
 import { updateWeight, isFavorite, toggleFavorite, renderFavorites, clearFavorites } from './src/store.js';
 import { fetchWeather, getSmartFilteredMenus, fetchNearbyRestaurants } from './src/api.js';
