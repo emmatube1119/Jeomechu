@@ -129,3 +129,26 @@ export async function shareResultImage(currentResultMenu) {
     showToast('공유하기에 실패했습니다.');
   }
 }
+// 결과 모달 업데이트 (사유 표시 및 특별 테마 적용)
+export function updateResultModal(menu, reason) {
+  const modal = document.getElementById('result-modal');
+  const reasonEl = document.getElementById('result-reason');
+  const menuEl = document.getElementById('final-menu');
+  const emojiEl = document.getElementById('result-emoji');
+  if(!modal || !menuEl || !emojiEl) return;
+
+  // 기본 정보 세팅
+  menuEl.textContent = menu.name;
+  emojiEl.textContent = menu.emoji;
+  if(reasonEl) reasonEl.textContent = reason;
+
+  // 테마 초기화 및 적용
+  modal.classList.remove('is-special');
+  if (menu.isSpecial) {
+    modal.classList.add('is-special');
+    // 특별한 날이면 배경 무드 컬러를 골드로
+    document.documentElement.style.setProperty('--mood-color', '#ffd700');
+  } else {
+    document.documentElement.style.setProperty('--mood-color', menu.moodColor);
+  }
+}

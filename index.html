@@ -41,7 +41,8 @@
         </header>
 
         <nav class="mode-tabs" role="tablist" aria-label="추천 모드 선택">
-            <button id="mode-random" class="tab-btn active" role="tab" aria-selected="true">🎲 랜덤 추천</button>
+            <button id="mode-random" class="tab-btn active" role="tab" aria-selected="true">🎲 랜덤</button>
+            <button id="mode-special" class="tab-btn" role="tab" aria-selected="false">✨ 특별한 날</button>
             <button id="mode-mix" class="tab-btn" role="tab" aria-selected="false">🧪 꿀조합</button>
             <button id="mode-favorites" class="tab-btn" role="tab" aria-selected="false">⭐ 보관함</button>
         </nav>
@@ -60,6 +61,14 @@
                         <button class="cat-btn" data-category="spicy">매콤</button>
                         <button class="cat-btn" data-category="light">가벼움</button>
                         <button class="cat-btn" data-category="night">야식</button>
+                    </div>
+                </div>
+
+                <!-- Special Mode -->
+                <div id="special-view" class="view-container hidden-view" role="tabpanel">
+                    <div class="special-desc">
+                        <h3>💎 오늘은 특별한 날!</h3>
+                        <p>평소보다 더 근사하고 품격 있는 메뉴를 추천해 드릴게요.</p>
                     </div>
                 </div>
 
@@ -126,6 +135,7 @@
                 <div class="result-display">
                     <span id="final-menu" class="highlight">비빔밥</span>
                 </div>
+                <p id="result-reason" class="result-reason"></p>
 
                 <div class="reaction-bar">
                     <button class="reaction-btn" id="like-btn" aria-label="좋아요">

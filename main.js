@@ -6,8 +6,8 @@ console.log('1. 모듈 로드 중...');
 
 import { MENUS } from './src/data.js';
 import { updateWeight, isFavorite, toggleFavorite, clearFavorites } from './src/store.js';
-import { fetchWeather, getSmartFilteredMenus, fetchNearbyRestaurants } from './src/api.js';
-import { showToast, shareResultImage, renderFavorites } from './src/ui.js';
+import { fetchWeather, getSmartFilteredMenus, fetchNearbyRestaurants, generateRecommendationReason } from './src/api.js';
+import { showToast, shareResultImage, renderFavorites, updateResultModal } from './src/ui.js';
 
 //=========================================
 // 1. STATE & DOM ELEMENTS
@@ -42,7 +42,7 @@ function initSlot(category) {
     
     const filtered = category === 'all' 
       ? MENUS 
-      : MENUS.filter(m => m.category.includes(category));
+      : (category === 'special' ? MENUS.filter(m => m.isSpecial) : MENUS.filter(m => m.category.includes(category)));
     
     if(filtered.length === 0) return;
 
@@ -75,6 +75,8 @@ function spin() {
     baseFiltered = currentCategory === 'all' 
       ? MENUS 
       : MENUS.filter(m => m.category.includes(currentCategory));
+  } else if (currentMode === 'special') {
+    baseFiltered = MENUS.filter(m => m.isSpecial);
   } else if (currentMode === 'mix') {
     if (!selectedIngredient || !selectedMethod) {
       showToast('주재료와 조리 방식을 먼저 선택해주세요!');
@@ -144,15 +146,8 @@ function showResult(menuObj) {
     return;
   }
 
-  finalMenuEl.textContent = menuObj.name;
-  resultEmojiEl.textContent = menuObj.emoji;
-  documentRoot.style.setProperty('--mood-color', menuObj.moodColor);
-  
-  const favBtn = document.getElementById('favorite-btn');
-  if(favBtn) {
-    if(isFavorite(menuObj.name)) favBtn.classList.add('active');
-    else favBtn.classList.remove('active');
-  }
+  const reason = generateRecommendationReason(menuObj);
+  updateResultModal(menuObj, reason);
 
   resultModal.classList.remove('hidden');
   isSpinning = false;
@@ -161,7 +156,7 @@ function showResult(menuObj) {
   if(btnText) btnText.textContent = '다시 추천받기!';
 
   fetchNearbyRestaurants(menuObj.name);
-  console.log('🎯 결과 발표 완료:', menuObj.name);
+  console.log('🎯 결과 발표 완료:', menuObj.name, `(사유: ${reason})`);
 }
 
 //=========================================
@@ -182,8 +177,8 @@ function setupEventListeners() {
       if(view) view.classList.remove('hidden-view');
 
       const slotArea = document.getElementById('slot-machine-area');
-      if (mode === 'random') {
-        initSlot(currentCategory);
+      if (mode === 'random' || mode === 'special') {
+        initSlot(mode === 'special' ? 'special' : currentCategory);
         if(slotArea) slotArea.style.display = 'block';
         spinBtn.style.display = 'flex';
       } else if (mode === 'mix') {
